@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAYA ARENA — Neural Shooter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Orbitron:wght@700;900&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #08090e;
+      color: #c8d0e0;
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* ─── Top HUD Row ─── */
+    #hud {
+      width: 100%;
+      max-width: 1400px;
+      padding: 14px 20px 10px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .fighter-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .fighter-panel.right {
+      align-items: flex-end;
+    }
+
+    .fighter-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #fff;
+    }
+
+    .stat-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #8898b4;
+    }
+
+    /* HP bar */
+    .bar-wrap {
+      width: 100%;
+      height: 14px;
+      background: #141823;
+      border: 1.5px solid #252d3f;
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bar-ghost {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: #c07400;
+      transition: width 0.5s ease-out;
+    }
+
+    .bar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      transition: width 0.1s linear;
+    }
+
+    .player-panel .bar-fill {
+      left: 0;
+      background: linear-gradient(90deg, #22d3ee, #38bdf8);
+    }
+
+    .player-panel .bar-ghost {
+      left: 0;
+    }
+
+    .laya-panel .bar-fill {
+      right: 0;
+      background: linear-gradient(90deg, #f87171, #ef4444);
+    }
+
+    .laya-panel .bar-ghost {
+      right: 0;
+    }
+
+    /* Ammo icons row */
+    .ammo-row {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      height: 10px;
+    }
+
+    .ammo-pip {
+      width: 5px;
+      height: 10px;
+      background: #4ade80;
+      border-radius: 1px;
+      transition: background 0.1s;
+    }
+
+    .ammo-pip.empty {
+      background: #2a3040;
+    }
+
+    /* Center display */
+    .center-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .match-timer {
+      font-family: 'Orbitron', monospace;
+      font-size: 26px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .match-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #ef4444;
+    }
+
+    /* ─── Canvas Wrapper ─── */
+    #arena-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 1400px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: #0f1117;
+    }
+
+    #arena {
+      display: block;
+      width: 100%;
+      height: auto;
+      cursor: none;
+    }
+
+    /* End Game Overlay */
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.72);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+
+    #overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .over-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #fff;
+      text-shadow: 0 0 24px currentColor;
+      margin-bottom: 14px;
+    }
+
+    .over-title.win {
+      color: #22d3ee;
+      text-shadow: 0 0 24px #22d3ee;
+    }
+
+    .over-title.lose {
+      color: #ef4444;
+      text-shadow: 0 0 24px #ef4444;
+    }
+
+    .rematch-btn {
+      padding: 10px 30px;
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      background: #1d4ed8;
+      border: 2px solid #60a5fa;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .rematch-btn:hover {
+      background: #2563eb;
+      transform: scale(1.04);
+    }
+
+    /* ─── Bottom Info Bar ─── */
+    #info-bar {
+      width: 100%;
+      max-width: 1400px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background: rgba(15, 17, 23, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #aaa;
+    }
+
+    .key {
+      background: #1e2232;
+      color: #fff;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 3px;
+      border: 1px solid #2d364d;
+      font-size: 11px;
+    }
+
+    /* ─── Neural Telemetry ─── */
+    #telemetry {
+      width: 100%;
+      max-width: 1400px;
+      margin: 8px 0 16px;
+      padding: 8px 16px;
+      background: #0b0d15;
+      border: 1px solid #161c2a;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #5a6a84;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tele-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tele-val {
+      color: #ddd;
+      font-weight: 700;
+    }
+
+    .tele-gpu {
+      color: #4ade80;
+    }
+
+    .tele-stance {
+      color: #fb923c;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .gpu-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+      display: inline-block;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HUD: HP Bars + Ammo + Timer -->
+  <div id="hud">
+    <!-- Player Panel -->
+    <div class="fighter-panel player-panel">
+      <div class="fighter-name">YOU</div>
+      <div class="bar-wrap">
+        <div class="bar-ghost" id="p-hp-ghost" style="width:100%"></div>
+        <div class="bar-fill" id="p-hp-fill" style="width:100%"></div>
+      </div>
+      <div class="stat-row">
+        HP: <span id="p-hp-val">100</span>&nbsp;&nbsp;
+        AMMO: <span id="p-ammo-val">30</span>
+      </div>
+      <div class="ammo-row" id="p-ammo-pips"></div>
+    </div>
+
+    <!-- Center Timer -->
+    <div class="center-display">
+      <div class="match-timer" id="timer">120</div>
+      <div class="match-label">ARENA</div>
+    </div>
+
+    <!-- Laya Panel -->
+    <div class="fighter-panel laya-panel right">
+      <div class="fighter-name">LAYA</div>
+      <div class="bar-wrap">
+        <div class="bar-ghost" id="l-hp-ghost" style="width:100%"></div>
+        <div class="bar-fill" id="l-hp-fill" style="width:100%"></div>
+      </div>
+      <div class="stat-row">
+        HP: <span id="l-hp-val">100</span>&nbsp;&nbsp;
+        AMMO: <span id="l-ammo-val">30</span>
+      </div>
+      <div class="ammo-row" id="l-ammo-pips"></div>
+    </div>
+  </div>
+
+  <!-- Game Canvas -->
+  <div id="arena-wrap">
+    <canvas id="arena" width="1400" height="800"></canvas>
+    <div id="overlay">
+      <div class="over-title" id="over-title">WINNER</div>
+      <button class="rematch-btn" onclick="resetGame()">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="info-bar">
+    <div class="ctrl-group"><span class="key">WASD</span> Move</div>
+    <div class="ctrl-group"><span class="key">MOUSE</span> Aim</div>
+    <div class="ctrl-group"><span class="key">LEFT CLICK</span> Shoot</div>
+    <div class="ctrl-group"><span class="key">R</span> Reload</div>
+    <div class="ctrl-group">Realistic AI: Laya only reacts to true Line-of-Sight. Duck behind crates to lose her!</div>
+  </div>
+
+  <!-- Neural Telemetry -->
+  <div id="telemetry">
+    <div class="tele-item">
+      <span class="gpu-dot"></span>
+      <span>AI ENGINE:</span>
+      <span class="tele-val tele-gpu" id="t-device">CUDA (RTX 3050)</span>
+    </div>
+    <div class="tele-item">
+      <span>VISION:</span>
+      <span class="tele-val" id="t-los" style="color:#4ade80;">ACQUIRING...</span>
+    </div>
+    <div class="tele-item">
+      <span>LAYA STANCE:</span>
+      <span class="tele-val tele-stance" id="t-stance">EVALUATING...</span>
+    </div>
+    <div class="tele-item">
+      <span>AI DECISION:</span>
+      <span class="tele-val" id="t-action">—</span>
+    </div>
+    <div class="tele-item">
+      <span>CONFIDENCE:</span>
+      <span class="tele-val" id="t-conf">—</span>
+    </div>
+    <div class="tele-item">
+      <span>FPS:</span>
+      <span class="tele-val" id="t-fps">60</span>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+
+</html>

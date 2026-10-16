@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large model weights (GitHub rejects files > 100MB)
+*.safetensors
+*.bin
+*.pt
+model/laya-english/.cache/
+model/laya-english/model.safetensors
+
+# Media / temporary captures
+*.jpeg
+*.jpg
+*.png
